@@ -92,4 +92,6 @@ class Task:
                 funcs.output(self.err_info, level='error')
             else:
                 self._state = TaskState.SUCCESS
-        return
+
+        data.add_task_history(self.name)
+        return data # TODO
