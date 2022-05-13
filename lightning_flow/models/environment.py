@@ -3,11 +3,10 @@ from io import TextIOWrapper
 import sys
 from typing import Optional
 
-__all__ = ['globalParams']
-
 @dataclass(frozen=True)
-class GlobalParams:
+class Environment:
     outputTarget: TextIOWrapper = sys.stdout
-    currentNode: Optional[str] = None
+    currentTask: Optional[str] = None
+    currentJob: Optional[str] = None
+    currentWorkflow: Optional[str] = None
 
-globalParams = GlobalParams()

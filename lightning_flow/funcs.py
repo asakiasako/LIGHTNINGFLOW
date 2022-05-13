@@ -1,4 +1,4 @@
-from ._globals import globalParams
+from .environment import globalParams
 
 def output(msg: str, level='info'):
     if level not in {'info', 'warning', 'error'}:

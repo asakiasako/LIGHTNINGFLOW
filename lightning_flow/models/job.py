@@ -1,22 +1,43 @@
+from enum import IntEnum
+from typing import List
 
-class Job(ABC):
+from .task import Task, TaskState
+from .parameter import Parameter
+
+
+class JobState(IntEnum):
+    """Flag the current state of the job"""
+    PENDING = 0
+    PAUSED = 1
+    INPROGRESS = 2
+    SUCCESS = 3
+    FAILURE = 4
+    SKIPPED = 5
+
+
+class Job:
+    """A job consists of a sequence of tasks to complete a specific piece of 
+    work.
+    """
 
     def __init__(self, name: str, **kwargs) -> None:
-        self.__name = name
-        self.__tasks = []
-        self.__tid = -1
-        self.__status = RunningStatus.PENDING
-        self.__parameter_names = tuple(sorted(i for i in dir(self.__class__) if isinstance(getattr(self.__class__, i), Parameter)))
+        """
+        Args:
+            name: The name of the job.
+            **kwargs: Passed to the parameters of the job, or ignored if the 
+            corresponding parameter is not defined.
+        """
+        self._name = name
+        self._tasks = []
+        self._err_info = None
+        self.__parameter_names = sorted(i for i in dir(self.__class__) 
+            if isinstance(getattr(self.__class__, i), Parameter))
         self.__load_parameters(**kwargs)
-        self.__err_info = None
-
-    def __call__(self, *args: Any, **kwds: Any) -> Any:
-        return self.run(*args, **kwds)
 
     def __repr__(self) -> str:
         return f"{self.__class__.__name__}(name={self.name!r}{''.join(f', {i}={getattr(self, i)!r}' for i in self.__parameter_names)})"
         
-    def __load_parameters(self, **kwargs):
+    def __load_parameters(self, **kwargs) -> None:
         p_names = set(self.__parameter_names)
         arg_keys = set(kwargs.keys())
         unassigned = sorted(p_names - arg_keys)
@@ -27,57 +48,33 @@ class Job(ABC):
                 setattr(self, k, v)
 
     @property
-    def name(self):
-        return self.__name
+    def name(self) -> str:
+        """The name of the job."""
+        return self._name
 
     @property
-    def status(self):
-        return self.__status
-
-    @property
-    def tasks(self):
-        return tuple(self.__tasks)
-
-    @property
-    def tid(self):
-        return self.__tid
-
-    @tasks.setter
-    def tasks(self, value):
-        if self.status != RunningStatus.PENDING:
-            raise RuntimeError('Appending tasks is only allowed before the job started running.')
-        _tasks = list(value)
-        if all(isinstance(i, Task) for i in _tasks):
-            self.__tasks = _tasks
+    def state(self) -> JobState:
+        """The state of the job."""
+        task_states = {task.state for task in self.tasks}
+        if not task_states or {TaskState.PENDING} == task_states:
+            return JobState.PENDING
+        if TaskState.INPROGRESS in task_states:
+            return JobState.INPROGRESS
+        if TaskState.FAILURE in task_states:
+            return JobState.FAILURE
+        if {TaskState.SKIPPED} == task_states:
+            return JobState.SKIPPED
+        if TaskState.PENDING in task_states:
+            return JobState.PAUSED
         else:
-            raise TypeError('Property tasks must be a list of Task instances.')
+            return JobState.SUCCESS
 
-    def append_task(self, task: Task):
-        if self.status != RunningStatus.PENDING:
-            raise RuntimeError('Appending tasks is only allowed before the job started running.')
-        if not isinstance(task, Task):
-            raise TypeError('Parameter task must be type Task.')
-        self.__tasks.append(task)
+    @property
+    def tasks(self) -> List[Task]:
+        """The task sequence of the job."""
+        return self._tasks
 
-    def run(self, await_on: Optional[Task | str | int] = None) -> None:
-        if self.status not in { RunningStatus.PENDING, RunningStatus.INPROGRESS }:
-            raise ValueError(f'A job in {self.status} could not run')
-        self.__status = RunningStatus.INPROGRESS
-        try:
-            while self.tid < len(self.tasks):
-                self.__tid += 1
-                task = self.tasks[self.tid]
-                task()
-                if await_on == task or await_on == task.name or await_on == self.tid:
-                    break
-            else:
-                self.__status = RunningStatus.SUCCESS
-        except:
-            self.__err_info = get_tb_str()
-            self.__status = RunningStatus.FAILURE
-            output(self.err_info, level='error')
-        else:
-            if self.tid >= len(self.tasks) - 1:
-                self.__status = RunningStatus.SUCCESS
-            else:
-                self.__status = RunningStatus.PAUSED
+    def skip_all(self) -> None:
+        """Set the `skip` flag of all tasks."""
+        for t in self.tasks:
+            t.skip = True
