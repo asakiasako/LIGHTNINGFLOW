@@ -1,5 +1,9 @@
 import sys, traceback
 
+from .environment import Environment
+
+env = Environment()
+
 def get_tb_str():
     err_type, err, tb = sys.exc_info()
     err_info = []
@@ -11,3 +15,8 @@ def get_tb_str():
     err_info.append(err_str)
     return ''.join(err_info)
 
+def output(msg: str, *, level='info'):
+    if level not in {'info', 'warning', 'error'}:
+        raise ValueError(f"{level!r} is not a valid level")
+    t = f"[{level}] {msg}\n"
+    env.outputTarget.write(t)
