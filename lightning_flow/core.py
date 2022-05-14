@@ -135,7 +135,7 @@ class Task:
         self._err_info = None
 
     def __repr__(self) -> str:
-        return f"{self.__class__.__name__}(name={self.name!r}{''.join(f', {i}={getattr(self, i)!r}' for i in self.__parameter_names)})"
+        return f"{self.__class__.__name__}(name={self.name!r})"
 
     @property
     def name(self) -> str:
@@ -256,8 +256,17 @@ class Job:
     def __len__(self):
         return len(self.tasks)
 
-    def __getitem__(self, idx):
-        return self.tasks[idx]
+    def __getitem__(self, name_or_idx: int | str):
+        if isinstance(name_or_idx, int):
+            item = self.tasks[name_or_idx]
+        else:
+            for task in self.tasks:
+                if task.name == name_or_idx:
+                    item = task
+                    break
+            else:
+                raise KeyError(name_or_idx)
+        return item
 
     @property
     def name(self) -> str:
@@ -285,6 +294,10 @@ class Job:
     def tasks(self) -> List[Task]:
         """The task sequence of the job."""
         return self._tasks
+
+    @tasks.setter
+    def tasks(self, value) -> None:
+        self._tasks = list(value)
 
     def skip_all(self) -> None:
         """Set the `skip` flag of all tasks."""
@@ -348,6 +361,10 @@ class Workflow:
     def jobs(self) -> List[Job]:
         return self._jobs
 
+    @jobs.setter
+    def jobs(self, value) -> None:
+        self._jobs = list(value)
+
     @property
     def dependencies(self) -> Optional[dict]:
         return self._dependencies
@@ -368,11 +385,14 @@ class Workflow:
             if not job:
                 raise ValueError(f'Empty job without any tasks: {job!r}')
             for i in range(len(job)-1):
-                schema[job[i]] = [job[i+1]]
+                schema[job[i]] = {job[i+1]}
 
         if self.dependencies:
             for k, v in self.dependencies.items():
-                schema.setdefault(k, []).append(v)
+                if isinstance(v, Iterable):
+                    schema.setdefault(k, set()).update(v)
+                else:
+                    schema.setdefault(k, set()).add(v)
 
         if schema is None:
             raise DirectedAcyclicGraphUndefined
@@ -383,13 +403,10 @@ class Workflow:
         for parent, children in schema.items():
             child_list = []
             if children is not None:
-                if isinstance(children, list):
-                    if len(children) > 0:
-                        child_list = children
-                    else:
-                        child_list = [None]
+                if len(children) > 0:
+                    child_list = list(children) # TODO
                 else:
-                    child_list = [children]
+                    child_list = [None]
             else:
                 child_list = [None]
 
@@ -399,6 +416,7 @@ class Workflow:
         graph = networkx.DiGraph()
 
         for parent, children in sanitized_schema.items():
+            print(parent, children)
             for child in children:
                 if child is not None:
                     graph.add_edge(parent, child)
@@ -415,7 +433,7 @@ class Workflow:
         n_nodes = graph.number_of_nodes()
         lexicographic = [t for job in self.jobs for t in job]
 
-        context = TaskContext(data=TaskData())
+        context = TaskContext(data=TaskData(), task_name=None, job_name=None, workflow_name=None)
         env = Environment()
         idx = 0
         for task in networkx.lexicographical_topological_sort(graph, key=lambda x: lexicographic.index(x)):

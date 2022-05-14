@@ -107,4 +107,4 @@ class OptionsParameter(Parameter):
         self._options = list(options)
 
     def validate(self, instance, value):
-        return validators._make_options_validator(self._options)(value)
+        return validators._make_options_validator(options=self._options)(value)
