@@ -559,3 +559,5 @@ class Workflow:
                 raise ValueError(f'Task {task.name} of job {task.parent} is not in PENDING state. Current state: {task.state.name}')
         else:
             self._state = WorkflowState.SUCCESS
+        
+        env.currentTask = env.currentJob = env.currentWorkflow = None
