@@ -69,15 +69,31 @@ def _make_type_validator(cls: Type, *, allow_none=False) -> function:
 
 
 validate_str = _make_type_validator(str)
+
+
 validate_str_or_None = _make_type_validator(str, allow_none=True)
+
+
 validate_strlist = _listify_validator(
     validate_str, doc='return a list of strings')
+
+
 validate_int = _make_type_validator(int)
+
+
 validate_int_or_None = _make_type_validator(int, allow_none=True)
+
+
 validate_intlist = _listify_validator(
     validate_int, doc='return a list of ints')
+
+
 validate_float = _make_type_validator(float)
+
+
 validate_float_or_None = _make_type_validator(float, allow_none=True)
+
+
 validate_floatlist = _listify_validator(
     validate_float, doc='return a list of floats')
 

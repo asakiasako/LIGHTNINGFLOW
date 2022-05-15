@@ -1,3 +1,4 @@
+"""Exception Types"""
 
 class DirectedAcyclicGraphInvalid(Exception): ...
 

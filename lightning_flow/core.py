@@ -1,7 +1,8 @@
 from __future__ import annotations
-from typing import Optional, Iterable, Mapping, List, Callable
-from enum import IntEnum
+from typing import Any, Iterator, Optional, Iterable, Mapping, Callable
+from collections.abc import MutableSequence
 from collections import UserDict
+from enum import IntEnum
 from copy import deepcopy
 
 import networkx
@@ -9,7 +10,7 @@ import networkx
 from .parameters import Parameter
 from .exceptions import DirectedAcyclicGraphInvalid, DirectedAcyclicGraphUndefined
 from .environment import Environment
-from .import utils, funcs
+from .import utils
 
 
 class TaskData(UserDict):
@@ -187,7 +188,7 @@ class Task:
         Returns:
             The context after the task completed.
         """
-        if not self.is_pending():
+        if not self.is_pending:
             raise ValueError(f'Only a task in PENDING state can be run. Current state: {self.state.name}')
         if self.skip:
             self._state = TaskState.SKIPPED
@@ -209,6 +210,57 @@ class Task:
                 self._state = TaskState.SUCCESS
         context.data.add_task_history(self.name)
         return context
+
+
+class TaskList(MutableSequence):
+    """A MuttableSequence type which ensures that all its elements are Task 
+    typed, and no duplicated task names.
+    """
+
+    def __init__(self, __iterable: Iterable = []) -> None:
+        self.__tasks = []
+        task_names = set()
+        for item in __iterable:
+            if not isinstance(item, Task):
+                raise TypeError(f"{item!r} is not an instance of Task")
+            if item.name in task_names:
+                raise ValueError(f'Duplicate task name: {item.name}')
+            task_names.add(item.name)
+            self.__tasks.append(item)
+
+    def __len__(self) -> int:
+        return len(self.__tasks)
+
+    def __iter__(self) -> Iterator[Task]:
+        return iter(self.__tasks)
+
+    def __reversed__(self) -> Iterator[Task]:
+        return reversed(self.__tasks)
+
+    def index(self, value: Any, start: int = ..., stop: int = ...) -> int:
+        return self.__tasks.index(value, start, stop)
+
+    def __getitem__(self, i: int):
+        return self.__tasks[i]
+
+    def __setitem__(self, i: int, item: Task):
+        if not isinstance(item, Task):
+            raise TypeError(f"{item!r} is not an instance of Task")
+        for _i, _item in enumerate(self):
+            if item.name == _item.name and _i != i:
+                raise ValueError(f'Duplicate task name: {item.name}')
+        return self.__tasks.__setitem__(i, item)
+
+    def __delitem__(self, i: int):
+        del self.__tasks[i]
+
+    def insert(self, i: int, item: Task) -> None:
+        if not isinstance(item, Task):
+            raise TypeError(f"{item!r} is not an instance of Task")
+        for _i, _item in enumerate(self):
+            if item.name == _item.name:
+                raise ValueError(f'Duplicate task name: {item.name}')
+        return self.__tasks.insert(i, item)
 
 
 class JobState(IntEnum):
@@ -234,8 +286,8 @@ class Job:
             corresponding parameter is not defined.
         """
         self._name = name
-        self._tasks = []
         self._err_info = None
+        self.__tasks = TaskList()
         self.__parameter_names = sorted(i for i in dir(self.__class__) 
             if isinstance(getattr(self.__class__, i), Parameter))
         self.__load_parameters(**kwargs)
@@ -291,18 +343,69 @@ class Job:
             return JobState.SUCCESS
 
     @property
-    def tasks(self) -> List[Task]:
+    def tasks(self) -> TaskList[Task]:
         """The task sequence of the job."""
-        return self._tasks
+        return self.__tasks
 
     @tasks.setter
-    def tasks(self, value) -> None:
-        self._tasks = list(value)
+    def tasks(self, value: Iterable[Task]) -> None:
+        self.__tasks = TaskList(value)
 
     def skip_all(self) -> None:
         """Set the `skip` flag of all tasks."""
         for t in self.tasks:
             t.skip = True
+
+
+class JobList(MutableSequence):
+    """A MuttableSequence type which ensures that all its elements are Job 
+    typed, and no duplicated job names.
+    """
+
+    def __init__(self, __iterable: Iterable = []) -> None:
+        self.__jobs = []
+        job_names = set()
+        for item in __iterable:
+            if not isinstance(item, Job):
+                raise TypeError(f"{item!r} is not an instance of Job")
+            if item.name in job_names:
+                raise ValueError(f'Duplicate job name: {item.name}')
+            job_names.add(item.name)
+            self.__jobs.append(item)
+
+    def __len__(self) -> int:
+        return len(self.__jobs)
+
+    def __iter__(self) -> Iterator[Job]:
+        return iter(self.__jobs)
+
+    def __reversed__(self) -> Iterator[Job]:
+        return reversed(self.__jobs)
+
+    def index(self, value: Any, start: int = ..., stop: int = ...) -> int:
+        return self.__jobs.index(value, start, stop)
+
+    def __getitem__(self, i: int):
+        return self.__jobs[i]
+
+    def __setitem__(self, i: int, item: Job):
+        if not isinstance(item, Job):
+            raise TypeError(f"{item!r} is not an instance of Job")
+        for _i, _item in enumerate(self):
+            if item.name == _item.name and _i != i:
+                raise ValueError(f'Duplicate job name: {item.name}')
+        return self.__jobs.__setitem__(i, item)
+
+    def __delitem__(self, i: int):
+        del self.__jobs[i]
+
+    def insert(self, i: int, item: Job) -> None:
+        if not isinstance(item, Job):
+            raise TypeError(f"{item!r} is not an instance of Job")
+        for _i, _item in enumerate(self):
+            if item.name == _item.name:
+                raise ValueError(f'Duplicate job name: {item.name}')
+        return self.__jobs.insert(i, item)
 
 
 class WorkflowState(IntEnum):
@@ -328,9 +431,9 @@ class Workflow:
             corresponding parameter is not defined.
         """
         self._name = name
-        self._jobs = []
-        self._dependencies = None
+        self._dependence = None
         self._state = WorkflowState.PENDING
+        self.__jobs = JobList()
         self.__parameter_names = sorted(i for i in dir(self.__class__) 
             if isinstance(getattr(self.__class__, i), Parameter))
         self.__load_parameters(**kwargs)
@@ -358,20 +461,20 @@ class Workflow:
         return self._state
 
     @property
-    def jobs(self) -> List[Job]:
-        return self._jobs
+    def jobs(self) -> JobList[Job]:
+        return self.__jobs
 
     @jobs.setter
-    def jobs(self, value) -> None:
-        self._jobs = list(value)
+    def jobs(self, value: Iterable[Job]) -> None:
+        self.__jobs = JobList(value)
 
     @property
-    def dependencies(self) -> Optional[dict]:
-        return self._dependencies
+    def dependence(self) -> Optional[dict]:
+        return self._dependence
 
-    @dependencies.setter
-    def dependencies(self, value: dict) -> None:
-        self._dependencies = value
+    @dependence.setter
+    def dependence(self, value: dict) -> None:
+        self._dependence = value
 
     def _validate_dag(self, graph: networkx.DiGraph) -> bool:
         if not networkx.is_directed_acyclic_graph(graph):
@@ -387,8 +490,8 @@ class Workflow:
             for i in range(len(job)-1):
                 schema[job[i]] = {job[i+1]}
 
-        if self.dependencies:
-            for k, v in self.dependencies.items():
+        if self.dependence:
+            for k, v in self.dependence.items():
                 if isinstance(v, Iterable):
                     schema.setdefault(k, set()).update(v)
                 else:
@@ -398,25 +501,25 @@ class Workflow:
             raise DirectedAcyclicGraphUndefined
 
         # sanitize the input schema such that it follows the structure:
-        #    {parent: [child1, child2, ...], ...}
+        #    {parent: {child1, child2, ...}, ...}
         sanitized_schema = {}
         for parent, children in schema.items():
-            child_list = []
+            child_set = set()
             if children is not None:
                 if len(children) > 0:
-                    child_list = list(children) # TODO
+                    child_set = set(children)
                 else:
-                    child_list = [None]
+                    child_set = {None}
             else:
-                child_list = [None]
+                child_set = {None}
 
-            sanitized_schema[parent] = child_list
+            sanitized_schema[parent] = child_set
 
+        # print(sanitized_schema)
         # build the graph from the sanitized schema
         graph = networkx.DiGraph()
 
         for parent, children in sanitized_schema.items():
-            print(parent, children)
             for child in children:
                 if child is not None:
                     graph.add_edge(parent, child)
@@ -426,6 +529,9 @@ class Workflow:
         self._validate_dag(graph=graph)
 
         return graph
+
+    def running_status(self): ...
+        # TODO return status of all the tasks with a dict
 
     def run(self):
         self._state = WorkflowState.INPROGRESS
@@ -442,14 +548,14 @@ class Workflow:
                 context.task_name = env.currentTask = task.name
                 context.job_name = env.currentJob = task.parent.name
                 context.workflow_name = env.currentWorkflow = self.name
-                print(f"[Task {idx}/{n_nodes}] {self.name}/{task.parent.name}/{task.name}:")
+                print(f"=== {self.name}/{task.parent.name}/{task.name} - {idx}/{n_nodes}:")
                 context = task.run(context=context)
-                print(f"  - {task.state}")
+                print(f"=== {task.state.name}\n")
                 if task.state == TaskState.FAILURE:
-                    self.state = WorkflowState.FAILURE
+                    self._state = WorkflowState.FAILURE
                     utils.output(task.err_info, level='error')
                     break
             else:
                 raise ValueError(f'Task {task.name} of job {task.parent} is not in PENDING state. Current state: {task.state.name}')
         else:
-            self.state = WorkflowState.SUCCESS
+            self._state = WorkflowState.SUCCESS

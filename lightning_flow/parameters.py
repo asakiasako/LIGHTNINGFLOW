@@ -5,6 +5,19 @@ from typing import Any
 from . import validators
 
 
+__all__ = [
+    "Parameter",
+    "AnyParameter",
+    "IntParameter",
+    "FloatParameter",
+    "BoolParameter",
+    "ListParameter",
+    "IntListParameter",
+    "FloatListParameter",
+    "OptionsParameter",
+]
+
+
 class Parameter(ABC):
 
     __count = 0
@@ -34,7 +47,7 @@ class Parameter(ABC):
         """Validate and returns the converted value."""
 
 
-class ParameterAny(Parameter):
+class AnyParameter(Parameter):
 
     def validate(self, instance, value):
         return validators.validate_any(value)
