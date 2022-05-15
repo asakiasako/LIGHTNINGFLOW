@@ -10,17 +10,18 @@ class ExampleJob(Job):
         self.tasks = [
             Task('Output p1', self, callback=self.output_p1),
             Task('Output p2', self, callback=self.output_p2),
-            Task('Output p3', self, callback=self.output_p3),
         ]
 
     p1 = IntParameter(min=1, max=5)
     p2 = OptionsParameter(options=['a', 'b', 'c', 'd', 'e'])
 
     def output_p1(self, context):
-        output(self.p1)
+        context.data['p1'] = self.p1
+        output(context.data)
 
     def output_p2(self, context):
-        output(self.p2)
+        context.data['p2'] = self.p2
+        output(context.data)
 
 
 class ExampleWorkflow(Workflow):
