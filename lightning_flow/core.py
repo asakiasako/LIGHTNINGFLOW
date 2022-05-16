@@ -1,4 +1,5 @@
 from __future__ import annotations
+from types import MappingProxyType
 from typing import Any, Iterator, Optional, Iterable, Mapping, Callable
 from collections.abc import MutableSequence
 from collections import UserDict
@@ -434,6 +435,7 @@ class Workflow:
         self._dependence = None
         self._state = WorkflowState.PENDING
         self.__jobs = JobList()
+        self.__outputs = {}
         self.__parameter_names = sorted(i for i in dir(self.__class__) 
             if isinstance(getattr(self.__class__, i), Parameter))
         self.__load_parameters(**kwargs)
@@ -467,6 +469,10 @@ class Workflow:
     @jobs.setter
     def jobs(self, value: Iterable[Job]) -> None:
         self.__jobs = JobList(value)
+
+    @property
+    def outputs(self) -> MappingProxyType:
+        return MappingProxyType(self.__outputs)
 
     @property
     def dependence(self) -> Optional[dict]:
@@ -530,17 +536,45 @@ class Workflow:
 
         return graph
 
-    def running_status(self): ...
-        # TODO return status of all the tasks with a dict
+    @property
+    def status(self):
+        """Return a list consists of state of all the jobs and tasks."""
+        status = {
+            'wokflow': self.name,
+            'state': self.state,
+            'jobs': [],
+        }
+        for job in self.jobs:
+            job_status = {
+                'jobName': job.name,
+                'jobState': job.state,
+                'tasks': [],
+            }
+            status['jobs'].append(job_status)
+            for task in job:
+                task_status = {
+                    'taskName': task.name,
+                    'taskState': task.state,
+                }
+                job_status['tasks'].append(task_status)
+        return status
+    
+    def _log_output(self, output):
+        env = Environment()
+        self.__outputs.setdefault(
+            env.currentJob, {}).setdefault(env.currentTask, []).append(output)
 
     def run(self):
+        env = Environment()
+        env.currentWorkflow = self.name
+        env.currentWorkflowInstance = self
         self._state = WorkflowState.INPROGRESS
+        
         graph = self._make_graph()
         n_nodes = graph.number_of_nodes()
         lexicographic = [t for job in self.jobs for t in job]
 
         context = TaskContext(data=TaskData(), task_name=None, job_name=None, workflow_name=None)
-        env = Environment()
         idx = 0
         for task in networkx.lexicographical_topological_sort(graph, key=lambda x: lexicographic.index(x)):
             if task.state == TaskState.PENDING:
@@ -553,11 +587,11 @@ class Workflow:
                 print(f"=== {task.state.name}\n")
                 if task.state == TaskState.FAILURE:
                     self._state = WorkflowState.FAILURE
-                    utils.output(task.err_info, level='error')
+                    utils.output(task.err_info, _type='error')
                     break
             else:
                 raise ValueError(f'Task {task.name} of job {task.parent} is not in PENDING state. Current state: {task.state.name}')
         else:
             self._state = WorkflowState.SUCCESS
         
-        env.currentTask = env.currentJob = env.currentWorkflow = None
+        env.currentTask = env.currentJob = env.currentWorkflow = env.currentWorkflowInstance = None
