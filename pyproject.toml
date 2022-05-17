@@ -1,9 +1,10 @@
 [tool.poetry]
-name = "lightning_flow"
+name = "lightningflow"
 version = "0.1.0"
 description = "A workflow template designed for optical transceiver test."
 authors = ["Chongjun Lei <chongjun.lei@neophotonics.com>"]
 license = "GPL-3.0-or-later"
+repository = "https://github.com/asakiasako/LIGHTNINGFLOW"
 
 [tool.poetry.dependencies]
 python = "^3.8"

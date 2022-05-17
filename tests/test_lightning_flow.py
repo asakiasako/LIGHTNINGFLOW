@@ -1,4 +1,4 @@
-from lightning_flow import __version__
+from lightningflow import __version__
 
 
 def test_version():

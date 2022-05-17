@@ -1,6 +1,6 @@
-from lightning_flow import Task, Job, Workflow
-from lightning_flow.parameters import *
-from lightning_flow.funcs import output
+from lightningflow import Task, Job, Workflow
+from lightningflow.parameters import *
+from lightningflow.funcs import output
 
 
 class ExampleJob(Job):
