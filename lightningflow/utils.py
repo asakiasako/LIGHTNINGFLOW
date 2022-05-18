@@ -35,7 +35,7 @@ def output(msg: str | Any, *, _type='info'):
         msg: The msg to output.
         _type: The type of the msg.
     """
-    if _type not in {'info', 'warning', 'error', 'json'}:
+    if _type not in {'info', 'warning', 'error', 'progress', 'json'}:
         raise ValueError(f"{_type!r} is not a valid value for _type")
     if _type == 'json':
         msg = json.dumps(msg)

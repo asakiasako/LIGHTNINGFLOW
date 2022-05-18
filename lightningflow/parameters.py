@@ -1,6 +1,6 @@
 from __future__ import annotations
 from abc import ABC, abstractmethod
-from typing import Any
+from typing import Any, Optional
 
 from . import validators
 
@@ -10,10 +10,12 @@ __all__ = [
     "AnyParameter",
     "IntParameter",
     "FloatParameter",
+    "StrParameter",
     "BoolParameter",
     "ListParameter",
     "IntListParameter",
     "FloatListParameter",
+    "StrListParameter",
     "OptionsParameter",
 ]
 
@@ -49,7 +51,7 @@ class Parameter(ABC):
 
 class AnyParameter(Parameter):
 
-    def validate(self, instance, value):
+    def validate(self, instance, value) -> Any:
         return validators.validate_any(value)
 
 
@@ -61,10 +63,10 @@ class IntParameter(Parameter):
         self._max = max
         self._allow_none = allow_none
 
-    def __repr__(self):
+    def __repr__(self) -> str:
         return f"{self.__class__.__name__}(min={self._min!r}, max={self._max}, allow_none={self._allow_none!r})"
 
-    def validate(self, instance, value):
+    def validate(self, instance, value) -> Optional[int]:
         value = validators.validate_int_or_None(value) if self._allow_none else validators.validate_int(value)
         if value is not None:
             value = validators._make_range_validator(_min=self._min, _max=self._max)(value)
@@ -79,13 +81,27 @@ class FloatParameter(Parameter):
         self._max = max
         self._allow_none = allow_none
 
-    def __repr__(self):
+    def __repr__(self) -> str:
         return f"{self.__class__.__name__}(min={self._min!r}, max={self._max!r}, allow_none={self._allow_none!r})"
 
-    def validate(self, instance, value):
+    def validate(self, instance, value) -> Optional[float]:
         value = validators.validate_float_or_None(value) if self._allow_none else validators.validate_float(value)
         if value is not None:
             value = validators._make_range_validator(_min=self._min, _max=self._max)(value)
+        return value
+
+
+class StrParameter(Parameter):
+
+    def __init__(self, allow_none: bool = False) -> None:
+        super().__init__()
+        self._allow_none = allow_none
+
+    def __repr__(self) -> str:
+        return f"{self.__class__.__name__}(allow_none={self._allow_none!r})"
+    
+    def validate(self, instance, value) -> Optional[str]:
+        value = validators.validate_str_or_None(value) if self._allow_none else validators.validate_str(value)
         return value
 
 
@@ -96,21 +112,71 @@ class BoolParameter(Parameter):
 
 
 class ListParameter(Parameter):
+
+    def __init__(self, n: Optional[int] = None):
+        super().__init__()
+        self._n = n
+
+    def __repr__(self) -> str:
+        return f"{self.__class__.__name__}(n={self._n!r})"
     
     def validate(self, instance, value):
-        return validators.validate_anylist(value)
+        c_val = validators.validate_anylist(value)
+        if self._n is not None:
+            if len(c_val) != self._n:
+                raise ValueError(f"Expected {self._n} values, but there are {len(c_val)} values in {value}")
+        return c_val
 
 
 class IntListParameter(Parameter):
 
+    def __init__(self, n: Optional[int] = None):
+        super().__init__()
+        self._n = n
+
+    def __repr__(self) -> str:
+        return f"{self.__class__.__name__}(n={self._n!r})"
+
     def validate(self, instance, value):
-        return validators.validate_intlist(value)
+        c_val = validators.validate_intlist(value)
+        if self._n is not None:
+            if len(c_val) != self._n:
+                raise ValueError(f"Expected {self._n} values, but there are {len(c_val)} values in {value}")
+        return c_val
 
 
 class FloatListParameter(Parameter):
 
+    def __init__(self, n: Optional[int] = None):
+        super().__init__()
+        self._n = n
+
+    def __repr__(self) -> str:
+        return f"{self.__class__.__name__}(n={self._n!r})"
+
     def validate(self, instance, value):
-        return validators.validate_floatlist(value)
+        c_val = validators.validate_floatlist(value)
+        if self._n is not None:
+            if len(c_val) != self._n:
+                raise ValueError(f"Expected {self._n} values, but there are {len(c_val)} values in {value}")
+        return c_val
+
+
+class StrListParameter(Parameter):
+
+    def __init__(self, n: Optional[int] = None):
+        super().__init__()
+        self._n = n
+
+    def __repr__(self) -> str:
+        return f"{self.__class__.__name__}(n={self._n!r})"
+
+    def validate(self, instance, value):
+        c_val = validators.validate_strlist(value)
+        if self._n is not None:
+            if len(c_val) != self._n:
+                raise ValueError(f"Expected {self._n} values, but there are {len(c_val)} values in {value}")
+        return c_val
 
 
 class OptionsParameter(Parameter):
