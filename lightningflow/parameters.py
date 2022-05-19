@@ -24,12 +24,13 @@ class Parameter(ABC):
 
     __count = 0
 
-    def __init__(self):
+    def __init__(self, *, display_name: Optional[str] = None):
         self.__class__.__count += 1
         self.__storage_name = f"_{self.__class__.__name__}#{self.__count}"
+        self.__display_name = display_name
     
     def __repr__(self) -> str:
-        return f"{self.__class__.__name__}()"
+        return f"{self.__class__.__name__}(display_name={self.display_name!r})"
 
     def __set__(self, instance, value):
         value = self.validate(instance, value)
@@ -44,6 +45,10 @@ class Parameter(ABC):
             except AttributeError as e:
                 raise AttributeError(f"This {self.__class__.__name__} of {instance.__class__.__name__} is not assigned yet.") from e
 
+    @property
+    def display_name(self):
+        return self.__display_name
+
     @abstractmethod
     def validate(self, instance, value) -> Any:
         """Validate and returns the converted value."""
@@ -57,14 +62,14 @@ class AnyParameter(Parameter):
 
 class IntParameter(Parameter):
     
-    def __init__(self, min: int | float = float('-inf'), max: int | float = float('inf'), allow_none: bool = False) -> None:
-        super().__init__()
+    def __init__(self, min: int | float = float('-inf'), max: int | float = float('inf'), allow_none: bool = False, *, display_name: Optional[str] = None) -> None:
+        super().__init__(display_name=display_name)
         self._min = min
         self._max = max
         self._allow_none = allow_none
 
     def __repr__(self) -> str:
-        return f"{self.__class__.__name__}(min={self._min!r}, max={self._max}, allow_none={self._allow_none!r})"
+        return f"{self.__class__.__name__}(min={self._min!r}, max={self._max}, allow_none={self._allow_none!r}, display_name={self.display_name!r})"
 
     def validate(self, instance, value) -> Optional[int]:
         value = validators.validate_int_or_None(value) if self._allow_none else validators.validate_int(value)
@@ -75,14 +80,14 @@ class IntParameter(Parameter):
 
 class FloatParameter(Parameter):
 
-    def __init__(self, min: int | float = float('-inf'), max: int | float = float('inf'), allow_none: bool = False) -> None:
-        super().__init__()
+    def __init__(self, min: int | float = float('-inf'), max: int | float = float('inf'), allow_none: bool = False, *, display_name: Optional[str] = None) -> None:
+        super().__init__(display_name=display_name)
         self._min = min
         self._max = max
         self._allow_none = allow_none
 
     def __repr__(self) -> str:
-        return f"{self.__class__.__name__}(min={self._min!r}, max={self._max!r}, allow_none={self._allow_none!r})"
+        return f"{self.__class__.__name__}(min={self._min!r}, max={self._max!r}, allow_none={self._allow_none!r}, display_name={self.display_name!r})"
 
     def validate(self, instance, value) -> Optional[float]:
         value = validators.validate_float_or_None(value) if self._allow_none else validators.validate_float(value)
@@ -93,12 +98,12 @@ class FloatParameter(Parameter):
 
 class StrParameter(Parameter):
 
-    def __init__(self, allow_none: bool = False) -> None:
-        super().__init__()
+    def __init__(self, allow_none: bool = False, *, display_name: Optional[str] = None) -> None:
+        super().__init__(display_name=display_name)
         self._allow_none = allow_none
 
     def __repr__(self) -> str:
-        return f"{self.__class__.__name__}(allow_none={self._allow_none!r})"
+        return f"{self.__class__.__name__}(allow_none={self._allow_none!r}, display_name={self.display_name!r})"
     
     def validate(self, instance, value) -> Optional[str]:
         value = validators.validate_str_or_None(value) if self._allow_none else validators.validate_str(value)
@@ -113,12 +118,12 @@ class BoolParameter(Parameter):
 
 class ListParameter(Parameter):
 
-    def __init__(self, n: Optional[int] = None):
-        super().__init__()
+    def __init__(self, n: Optional[int] = None, *, display_name: Optional[str] = None):
+        super().__init__(display_name=display_name)
         self._n = n
 
     def __repr__(self) -> str:
-        return f"{self.__class__.__name__}(n={self._n!r})"
+        return f"{self.__class__.__name__}(n={self._n!r}, display_name={self.display_name!r})"
     
     def validate(self, instance, value):
         c_val = validators.validate_anylist(value)
@@ -130,12 +135,12 @@ class ListParameter(Parameter):
 
 class IntListParameter(Parameter):
 
-    def __init__(self, n: Optional[int] = None):
-        super().__init__()
+    def __init__(self, n: Optional[int] = None, *, display_name: Optional[str] = None):
+        super().__init__(display_name=display_name)
         self._n = n
 
     def __repr__(self) -> str:
-        return f"{self.__class__.__name__}(n={self._n!r})"
+        return f"{self.__class__.__name__}(n={self._n!r}, display_name={self.display_name!r})"
 
     def validate(self, instance, value):
         c_val = validators.validate_intlist(value)
@@ -147,12 +152,12 @@ class IntListParameter(Parameter):
 
 class FloatListParameter(Parameter):
 
-    def __init__(self, n: Optional[int] = None):
-        super().__init__()
+    def __init__(self, n: Optional[int] = None, *, display_name: Optional[str] = None):
+        super().__init__(display_name=display_name)
         self._n = n
 
     def __repr__(self) -> str:
-        return f"{self.__class__.__name__}(n={self._n!r})"
+        return f"{self.__class__.__name__}(n={self._n!r}, display_name={self.display_name!r})"
 
     def validate(self, instance, value):
         c_val = validators.validate_floatlist(value)
@@ -164,12 +169,12 @@ class FloatListParameter(Parameter):
 
 class StrListParameter(Parameter):
 
-    def __init__(self, n: Optional[int] = None):
-        super().__init__()
+    def __init__(self, n: Optional[int] = None, *, display_name: Optional[str] = None):
+        super().__init__(display_name=display_name)
         self._n = n
 
     def __repr__(self) -> str:
-        return f"{self.__class__.__name__}(n={self._n!r})"
+        return f"{self.__class__.__name__}(n={self._n!r}, display_name={self.display_name!r})"
 
     def validate(self, instance, value):
         c_val = validators.validate_strlist(value)
@@ -181,8 +186,8 @@ class StrListParameter(Parameter):
 
 class OptionsParameter(Parameter):
 
-    def __init__(self, options=[]):
-        super().__init__()
+    def __init__(self, options=[], *, display_name: Optional[str] = None):
+        super().__init__(display_name=display_name)
         self._options = list(options)
 
     def validate(self, instance, value):

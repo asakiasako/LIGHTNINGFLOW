@@ -98,7 +98,6 @@ class Task:
     def __init__(
         self, 
         name: str, 
-        parent: Job,
         *, 
         callback: Callable, 
         setup: Optional[Callable] = None, 
@@ -107,7 +106,6 @@ class Task:
         """
         Args:
             name: The name of the task.
-            parent: The job which contains this task.
             callback: A reference to the callable that should be called by the 
                 task.
             setup: An optional callable called before the task callback 
@@ -128,7 +126,6 @@ class Task:
         context will be returned after the task is completed.
         """
         self._name = name
-        self._parent = parent
         self._callback = callback
         self._setup = setup
         self._teardown = teardown
@@ -143,11 +140,6 @@ class Task:
     def name(self) -> str:
         """The name of the task."""
         return self._name
-
-    @property
-    def parent(self) -> Job:
-        """The job which contains this task."""
-        return self._parent
 
     @property
     def state(self) -> TaskState:
@@ -435,6 +427,7 @@ class Workflow:
         self._dependence = None
         self._state = WorkflowState.PENDING
         self.__jobs = JobList()
+        self.__context = None
         self.__outputs = {}
         self.__parameter_names = sorted(i for i in dir(self.__class__) 
             if isinstance(getattr(self.__class__, i), Parameter))
@@ -469,6 +462,10 @@ class Workflow:
     @jobs.setter
     def jobs(self, value: Iterable[Job]) -> None:
         self.__jobs = JobList(value)
+
+    @property
+    def context(self) -> Optional[TaskContext]:
+        return self.__context
 
     @property
     def outputs(self) -> MappingProxyType:
@@ -574,15 +571,18 @@ class Workflow:
         n_nodes = graph.number_of_nodes()
         lexicographic = [t for job in self.jobs for t in job]
 
-        context = TaskContext(data=TaskData(), task_name=None, job_name=None, workflow_name=None)
+        self.__context = context = TaskContext(data=TaskData(), task_name=None, job_name=None, workflow_name=None)
         idx = 0
         for task in networkx.lexicographical_topological_sort(graph, key=lambda x: lexicographic.index(x)):
             if task.state == TaskState.PENDING:
                 idx += 1
+                for job in self.jobs:
+                    if task in job:
+                        break
                 context.task_name = env.currentTask = task.name
-                context.job_name = env.currentJob = task.parent.name
+                context.job_name = env.currentJob = job.name
                 context.workflow_name = env.currentWorkflow = self.name
-                print(f"=== {self.name}/{task.parent.name}/{task.name} - {idx}/{n_nodes}:")
+                print(f"=== {self.name}/{job.name}/{task.name} - {idx}/{n_nodes}:")
                 context = task.run(context=context)
                 print(f"=== {task.state.name}\n")
                 if task.state == TaskState.FAILURE:
@@ -590,7 +590,7 @@ class Workflow:
                     utils.output(task.err_info, _type='error')
                     break
             else:
-                raise ValueError(f'Task {task.name} of job {task.parent} is not in PENDING state. Current state: {task.state.name}')
+                raise ValueError(f'Task {task.name} of job {job} is not in PENDING state. Current state: {task.state.name}')
         else:
             self._state = WorkflowState.SUCCESS
         

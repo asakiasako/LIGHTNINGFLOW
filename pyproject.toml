@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "lightningflow"
-version = "0.1.3"
+version = "0.1.4"
 description = "A workflow template designed for optical transceiver test."
 authors = ["Chongjun Lei <chongjun.lei@neophotonics.com>"]
 license = "GPL-3.0-or-later"
